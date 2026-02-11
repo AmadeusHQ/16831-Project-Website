@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Title — 16-831 Course Project</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ============ HEADER / TITLE ============ -->
+  <header class="hero">
+    <div class="container">
+      <p class="venue-tag">16-831 Course Project &middot; Carnegie Mellon University &middot; Spring 2026</p>
+      <h1 class="paper-title">
+        <!-- TODO: Replace with your project title -->
+        A Comparative Study of Different RL Algorithms on Unitree Go2 Robot
+      </h1>
+      <div class="authors">
+        <!-- TODO: Fill in author names and affiliations -->
+        <span class="author"> Yinong He <sup>1</sup></span>,
+        <span class="author"> Xinhe Wang <sup>1</sup></span>,
+        <span class="author"> Yutong Wang <sup>1</sup></span>
+      </div>
+      <div class="affiliations">
+        <span><sup>1</sup> Carnegie Mellon University</span>
+      </div>
+      <div class="links">
+        <a href="#" class="btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Paper</a>
+        <a href="#" class="btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg> Code</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ ABSTRACT ============ -->
+  <section id="abstract" class="section">
+    <div class="container container-narrow">
+      <h2>Abstract</h2>
+      <p class="abstract-text">
+        <!-- TODO: Replace with your abstract -->
+        This is the website for the 16-831 Course Project. We are using the <strong>Isaac-Velocity-Rough-Unitree-Go2-v0</strong> environment. The abstract will be updated as the project progresses.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ APPROACH OVERVIEW (placeholder) ============ -->
+  <section id="approach" class="section section-alt">
+    <div class="container container-narrow">
+      <h2>Approach</h2>
+      <p>
+        <!-- TODO: Describe your approach -->
+        We will use the following RL algorithms to train the policy for the Unitree Go2 robot:
+      </p>
+      <div class="figure-placeholder">
+        <span>[ Method Overview Figure ]</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RANDOM AGENT VIDEO RESULTS ============ -->
+  <section id="random-agent" class="section">
+    <div class="container">
+      <h2>Random Agent Baseline</h2>
+      <p class="section-description">
+        Below we show the performance of a <strong>random agent</strong> — an agent that selects actions uniformly at random.
+        These videos serve as a baseline to illustrate the difficulty of the task and motivate our learned policy.
+      </p>
+
+      <div class="video-grid">
+        <!-- Video Card 1 -->
+        <div class="video-card">
+          <div class="video-slot">
+            <!-- TODO: Replace src with your video file -->
+            <video controls preload="metadata" poster="">
+              <source src="" type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+            <div class="video-placeholder-overlay">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Video Coming Soon</span>
+            </div>
+          </div>
+          <p class="video-caption">Rollout 1 — Random Agent</p>
+        </div>
+
+        <!-- Video Card 2 -->
+        <div class="video-card">
+          <div class="video-slot">
+            <video controls preload="metadata" poster="">
+              <source src="" type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+            <div class="video-placeholder-overlay">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Video Coming Soon</span>
+            </div>
+          </div>
+          <p class="video-caption">Rollout 2 — Random Agent</p>
+        </div>
+
+        <!-- Video Card 3 -->
+        <div class="video-card">
+          <div class="video-slot">
+            <video controls preload="metadata" poster="">
+              <source src="" type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+            <div class="video-placeholder-overlay">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Video Coming Soon</span>
+            </div>
+          </div>
+          <p class="video-caption">Rollout 3 — Random Agent</p>
+        </div>
+      </div>
+
+      <!-- Random Agent Results Table -->
+      <div class="results-table-wrapper">
+        <table class="results-table">
+          <caption>Table 1: Velocity tracking performance of a random agent.</caption>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Rollout 1</th>
+              <th>Rollout 2</th>
+              <th>Rollout 3</th>
+              <th>Average</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><em>e</em><sub>lin</sub> (m/s)</td>
+              <td>1.0587</td>
+              <td>1.0809</td>
+              <td>1.0897</td>
+              <td><strong>1.0764</strong></td>
+            </tr>
+            <tr>
+              <td><em>e</em><sub>ang</sub> (rad/s)</td>
+              <td>0.4079</td>
+              <td>0.4676</td>
+              <td>0.4142</td>
+              <td><strong>0.4299</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RESULTS (placeholder) ============ -->
+  <section id="results" class="section section-alt">
+    <div class="container container-narrow">
+      <h2>Results</h2>
+      <p>
+        <!-- TODO: Add quantitative and qualitative results -->
+        Quantitative results (tables, charts) and qualitative comparisons will be added here.
+      </p>
+      <div class="figure-placeholder">
+        <span>[ Results Table / Chart ]</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONCLUSION (placeholder) ============ -->
+  <section id="conclusion" class="section">
+    <div class="container container-narrow">
+      <h2>Conclusion</h2>
+      <p>
+        <!-- TODO: Add conclusion -->
+        This is the conclusion of the project. We will update the conclusion as the project progresses.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ REFERENCES (placeholder) ============ -->
+  <section id="references" class="section section-alt">
+    <div class="container container-narrow">
+      <h2>References</h2>
+      <ol class="references-list">
+        <li><!-- TODO --> Reference 1 placeholder.</li>
+        <li><!-- TODO --> Reference 2 placeholder.</li>
+        <li><!-- TODO --> Reference 3 placeholder.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; 2026 &middot; 16-831 Course Project &middot; Carnegie Mellon University</p>
+    </div>
+  </footer>
+
+</body>
+</html>
+
