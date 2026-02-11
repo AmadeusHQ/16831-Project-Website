@@ -176,6 +176,11 @@ a:hover {
   gap: 1.5rem;
 }
 
+.video-single {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
 .video-card {
   background: #ffffff;
   border-radius: 10px;
