@@ -115,16 +115,38 @@
     </div>
   </section>
 
-  <!-- ============ RESULTS (placeholder) ============ -->
+  <!-- ============ RESULTS ============ -->
   <section id="results" class="section section-alt">
-    <div class="container container-narrow">
+    <div class="container">
       <h2>Results</h2>
-      <p>
-        <!-- TODO: Add quantitative and qualitative results -->
-        Quantitative results (tables, charts) and qualitative comparisons will be added here.
+      <p class="section-description">
+        Trained policy demos for PPO and SAC on Isaac-Velocity-Rough-Unitree-Go2-v0.
       </p>
-      <div class="figure-placeholder">
-        <span>[ Results Table / Chart ]</span>
+
+      <div class="video-grid video-grid-2">
+        <div class="video-card">
+          <div class="video-slot">
+            <video controls preload="metadata">
+              <source src="demo_ppo.mp4" type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+          </div>
+          <p class="video-caption">
+            <strong>PPO</strong>
+          </p>
+        </div>
+
+        <div class="video-card">
+          <div class="video-slot">
+            <video controls preload="metadata">
+              <source src="demo_sac.mp4" type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+          </div>
+          <p class="video-caption">
+            <strong>SAC</strong>
+          </p>
+        </div>
       </div>
     </div>
   </section>

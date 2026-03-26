@@ -176,6 +176,10 @@ a:hover {
   gap: 1.5rem;
 }
 
+.video-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .video-single {
   max-width: 720px;
   margin: 0 auto;
