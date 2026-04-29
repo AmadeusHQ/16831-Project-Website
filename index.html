@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Project Title — 16-831 Course Project</title>
+  <title>A Comparative Study of RL Algorithms on Unitree Go2 — 16-831 Course Project</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -38,21 +38,144 @@
     <div class="container container-narrow">
       <h2>Abstract</h2>
       <p class="abstract-text">
-        This is the website for the 16-831 Course Project. We are using the <strong>Isaac-Velocity-Rough-Unitree-Go2-v0</strong> environment. The abstract will be updated as the project progresses.
+        We present a comparative study of reinforcement learning algorithms for velocity-tracking
+        locomotion of the Unitree Go2 quadruped on rough terrain, using the
+        <strong>Isaac-Velocity-Rough-Unitree-Go2-v0</strong> environment from IsaacLab. We benchmark three
+        baseline methods — on-policy <strong>PPO</strong>, off-policy <strong>SAC</strong>, and model-based
+        <strong>TD-MPC2</strong> — and study two modifications to the standard setup. The first replaces
+        joint <em>position</em> control with direct joint <em>torque</em> control, exposing the policy to the
+        full nonlinear, contact-rich dynamics of locomotion. The second introduces three variants of
+        <strong>Group-Relative Policy Optimization (GRPO)</strong> — fixed-bin GRPO, Adaptive-GRPO, and
+        Hard-Sync GRPO — that replace the global value baseline with a command-conditional one. PPO
+        with position control achieves the best overall tracking accuracy, while Hard-Sync GRPO yields
+        the fastest early-phase convergence among the GRPO variants. Torque-control policies improve
+        substantially over the random baseline but still trail their position-control counterparts,
+        highlighting the difficulty of jointly learning balance, contact handling, and velocity
+        tracking from torques alone.
       </p>
     </div>
   </section>
 
-  <!-- ============ APPROACH OVERVIEW (placeholder) ============ -->
-  <section id="approach" class="section section-alt">
+  <!-- ============ METHOD ============ -->
+  <section id="method" class="section section-alt">
     <div class="container container-narrow">
-      <h2>Approach</h2>
+      <h2>Method</h2>
+
+      <h3 class="subsection-title">Environment</h3>
       <p>
-        We will use the following RL algorithms to train the policy for the Unitree Go2 robot:
+        We use the <strong>Isaac-Velocity-Rough-Unitree-Go2-v0</strong> environment from
+        IsaacLab&nbsp;[1], in which a Unitree Go2 quadruped learns to track velocity commands on
+        rough terrain. The 48-D observation concatenates base linear and angular velocity (3+3),
+        projected gravity in the robot frame (3), the target command
+        (<em>v</em><sub>x</sub><sup>cmd</sup>, <em>v</em><sub>y</sub><sup>cmd</sup>, <em>ω</em><sub>z</sub><sup>cmd</sup>) (3),
+        joint positions and velocities of all 12 joints (12+12), and a height scan of the local
+        terrain. The 12-D action specifies joint position targets for the hip, thigh, and calf of
+        each of the four legs.
       </p>
-      <div class="figure-placeholder">
-        <span>[ Method Overview Figure ]</span>
-      </div>
+
+      <h3 class="subsection-title">Reward Function</h3>
+      <p>
+        We design the reward to encourage tracking of commanded planar linear velocity and yaw
+        rate, while penalizing unstable vertical motion and inefficient or non-smooth actuation.
+        The tracking errors are
+      </p>
+      <p class="math-block">
+        <em>e</em><sub>lin</sub> = ‖<strong>v</strong><sub>xy</sub> − <strong>v</strong><sub>xy</sub><sup>cmd</sup>‖<sub>2</sub>,
+        &nbsp;&nbsp;
+        <em>e</em><sub>ang</sub> = |<em>ω</em><sub>z</sub> − <em>ω</em><sub>z</sub><sup>cmd</sup>|.
+      </p>
+      <p>
+        These errors are converted into bounded tracking rewards via exponential kernels:
+      </p>
+      <p class="math-block">
+        <em>r</em><sub>lin</sub> = exp(−<em>e</em><sub>lin</sub><sup>2</sup>/<em>σ</em><sub>lin</sub><sup>2</sup>),
+        &nbsp;&nbsp;
+        <em>r</em><sub>ang</sub> = exp(−<em>e</em><sub>ang</sub><sup>2</sup>/<em>σ</em><sub>ang</sub><sup>2</sup>),
+      </p>
+      <p>
+        which yields smooth gradients and keeps each term in (0, 1]. To discourage instability and
+        excessive actuation, we also include penalties on vertical velocity, joint torques, and
+        joint accelerations:
+      </p>
+      <p class="math-block">
+        <em>p</em><sub>z</sub> = <em>v</em><sub>z</sub><sup>2</sup>,
+        &nbsp;&nbsp;
+        <em>p</em><sub>τ</sub> = ‖<strong>τ</strong>‖<sub>2</sub><sup>2</sup>,
+        &nbsp;&nbsp;
+        <em>p</em><sub>q̈</sub> = ‖<strong>q̈</strong>‖<sub>2</sub><sup>2</sup>.
+      </p>
+      <p>
+        The per-timestep reward is then a weighted combination
+        <em>r</em><sub>t</sub> =
+        <em>w</em><sub>lin</sub> <em>r</em><sub>lin</sub>
+        + <em>w</em><sub>ang</sub> <em>r</em><sub>ang</sub>
+        − <em>w</em><sub>z</sub> <em>p</em><sub>z</sub>
+        − <em>w</em><sub>τ</sub> <em>p</em><sub>τ</sub>
+        − <em>w</em><sub>q̈</sub> <em>p</em><sub>q̈</sub>,
+        trading off tracking against stability, energy efficiency, and smoothness.
+      </p>
+
+      <h3 class="subsection-title">Modification A: Torque-Control Policy</h3>
+      <p>
+        In the baseline setup, the action space is 12 joint position targets, tracked by an
+        internal PD controller. While this simplifies learning, it abstracts away the low-level
+        actuation dynamics. In Modification A, the policy directly outputs joint torques
+        <em>a</em><sub>t</sub> ∈ ℝ<sup>12</sup>. Removing the implicit PD controller exposes the
+        full nonlinear, contact-rich dynamics of quadruped locomotion: the policy must regulate
+        forces, maintain balance, and handle impacts purely through torque outputs. This converts
+        the problem from trajectory generation into full dynamic control, providing a more
+        rigorous test of how each RL algorithm handles low-level continuous control and contact
+        instability.
+      </p>
+
+      <h3 class="subsection-title">Modification B: GRPO and Variants</h3>
+      <p>
+        The policy is conditioned on commanded velocities
+        <em>c</em><sub>t</sub> = (<em>v</em><sub>x</sub><sup>cmd</sup>, <em>v</em><sub>y</sub><sup>cmd</sup>, <em>ω</em><sub>z</sub><sup>cmd</sup>).
+        Different commands induce locomotion tasks of very different difficulty, so a global value
+        baseline incurs high gradient variance. Group-Relative Policy Optimization (GRPO)&nbsp;[2]
+        replaces the global baseline with a <em>command-conditional</em> one by partitioning rollouts
+        into groups <em>g</em> of similar commands and using the group-relative advantage
+      </p>
+      <p class="math-block">
+        <em>A</em><sub>i,t</sub><sup>GR</sup> = <em>R</em><sub>i,t</sub> − <em>R̄</em><sub>g</sub>,
+        &nbsp;&nbsp;
+        <em>R̄</em><sub>g</sub> = (1/|<em>g</em>|) Σ<sub>(i,τ)∈g</sub> <em>R</em><sub>i,τ</sub>,
+      </p>
+      <p>
+        optionally normalized by std(<em>R</em><sub>g</sub>). The policy is updated with a clipped
+        policy-gradient objective and a KL regularizer to <em>π</em><sub>θ<sub>old</sub></sub>; no
+        additional value network is required. We study three variants:
+      </p>
+      <ul class="bullet-list">
+        <li>
+          <strong>GRPO (fixed bins).</strong> Discretize each component of
+          <em>c</em><sub>t</sub> into a fixed number of bins and hash <em>c</em><sub>t</sub> into
+          the resulting Cartesian grid.
+        </li>
+        <li>
+          <strong>Adaptive-GRPO.</strong> Construct groups dynamically each iteration via
+          K-means in command space, removing the need to hand-tune bin boundaries and keeping
+          group sizes roughly balanced.
+        </li>
+        <li>
+          <strong>Hard-Sync GRPO.</strong> Eliminate residual intra-group heterogeneity by
+          partitioning the <em>N</em> parallel environments into <em>N</em>/<em>G</em> fixed
+          groups of size <em>G</em>; at each command resample we draw a single
+          <em>c</em><sub>t</sub><sup>(g)</sup> per group and broadcast it to all members. On rough
+          terrain we additionally synchronize the curriculum so all group members share the same
+          sub-terrain. The empirical group mean <em>R̄</em><sub>g</sub> then becomes an unbiased
+          Monte-Carlo estimate of the exact condition-conditional value.
+        </li>
+      </ul>
+
+      <h3 class="subsection-title">Algorithms Compared</h3>
+      <p>
+        We compare three baseline RL methods — on-policy <strong>PPO</strong>&nbsp;[3], off-policy
+        <strong>SAC</strong>&nbsp;[4], and model-based <strong>TD-MPC2</strong>&nbsp;[5] — under
+        position control, plus PPO and SAC trained with torque control (Modification A), and the
+        three GRPO variants (Modification B).
+      </p>
     </div>
   </section>
 
@@ -61,10 +184,13 @@
     <div class="container">
       <h2>Random Agent Baseline</h2>
       <p class="section-description">
-        Below we show the performance of a <strong>random agent</strong> — an agent that selects actions uniformly at random.
+        Below we show the performance of a <strong>random agent</strong> — an agent that selects actions uniformly at random — under two action spaces:
+        <strong>position control</strong> (default joint-position targets) and <strong>torque control</strong> (direct joint torques).
+        The <span style="color:#22c55e;font-weight:600;">green arrow</span> indicates the commanded velocity (+1 m/s in the robot body frame),
+        and the <span style="color:#3b82f6;font-weight:600;">blue arrow</span> indicates the robot's current velocity.
       </p>
 
-      <div class="video-single">
+      <div class="video-grid video-grid-2">
         <div class="video-card">
           <div class="video-slot">
             <video controls preload="metadata">
@@ -74,9 +200,19 @@
             </video>
           </div>
           <p class="video-caption">
-            Random Agent on Isaac-Velocity-Rough-Unitree-Go2-v0. 
-            The <span style="color:#22c55e;font-weight:600;">green arrow</span> indicates the commanded velocity (+1 m/s in the robot body frame), 
-            and the <span style="color:#3b82f6;font-weight:600;">blue arrow</span> indicates the robot's current velocity.
+            <strong>Random — Position Control</strong>
+          </p>
+        </div>
+
+        <div class="video-card">
+          <div class="video-slot">
+            <video controls preload="metadata">
+              <source src="random-torque.mp4" type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+          </div>
+          <p class="video-caption">
+            <strong>Random — Torque Control</strong>
           </p>
         </div>
       </div>
@@ -120,9 +256,13 @@
     <div class="container">
       <h2>Results</h2>
       <p class="section-description">
-        Trained policy demos for PPO and SAC on Isaac-Velocity-Rough-Unitree-Go2-v0.
+        Trained policy demos on Isaac-Velocity-Rough-Unitree-Go2-v0. We compare four RL algorithms
+        — <strong>PPO</strong>, <strong>SAC</strong>, <strong>GRPO</strong>, and <strong>TD-MPC</strong> —
+        under <strong>position control</strong>, and additionally show <strong>PPO</strong> and <strong>SAC</strong>
+        trained directly with <strong>torque control</strong>.
       </p>
 
+      <h3 class="subsection-title">Position Control</h3>
       <div class="video-grid video-grid-2">
         <div class="video-card">
           <div class="video-slot">
@@ -147,31 +287,241 @@
             <strong>SAC</strong>
           </p>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- ============ CONCLUSION (placeholder) ============ -->
-  <section id="conclusion" class="section">
-    <div class="container container-narrow">
-      <h2>Conclusion</h2>
+        <div class="video-card">
+          <div class="video-slot">
+            <video controls preload="metadata">
+              <source src="grpo_hardsync_iter7999.mp4" type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+          </div>
+          <p class="video-caption">
+            <strong>GRPO</strong> <span class="caption-sub">(hard-sync, iter 7999)</span>
+          </p>
+        </div>
+
+        <div class="video-card">
+          <div class="video-slot">
+            <video controls preload="metadata">
+              <source src="tdmpc.mp4" type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+          </div>
+          <p class="video-caption">
+            <strong>TD-MPC</strong>
+          </p>
+        </div>
+      </div>
+
+      <h3 class="subsection-title">Torque Control</h3>
+      <div class="video-grid video-grid-2">
+        <div class="video-card">
+          <div class="video-slot">
+            <video controls preload="metadata">
+              <source src="ppo-torque.mp4" type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+          </div>
+          <p class="video-caption">
+            <strong>PPO — Torque Control</strong>
+          </p>
+        </div>
+
+        <div class="video-card">
+          <div class="video-slot">
+            <video controls preload="metadata">
+              <source src="sac-torque.mp4" type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+          </div>
+          <p class="video-caption">
+            <strong>SAC — Torque Control</strong>
+          </p>
+        </div>
+      </div>
+
+      <h3 class="subsection-title">Quantitative Results</h3>
       <p>
-        <!-- TODO: Add conclusion -->
-        This is the conclusion of the project. We will update the conclusion as the project progresses.
+        Table 2 summarizes the velocity-tracking errors of all methods on the +1&nbsp;m/s
+        forward-tracking task with zero commanded yaw rate. Errors are averaged over 500 samples
+        at 50&nbsp;Hz; lower is better. The best score per column is shown in bold.
+      </p>
+
+      <div class="results-table-wrapper">
+        <table class="results-table">
+          <caption>
+            Table 2: Velocity-tracking errors of different RL methods under position and torque
+            control. Linear velocity error is in m/s, angular velocity error is in rad/s.
+          </caption>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Control Mode</th>
+              <th><em>e</em><sub>lin</sub> (m/s)</th>
+              <th><em>e</em><sub>ang</sub> (rad/s)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Random</td>
+              <td>Position</td>
+              <td>1.0764</td>
+              <td>0.4299</td>
+            </tr>
+            <tr>
+              <td>Random</td>
+              <td>Torque</td>
+              <td>0.8507</td>
+              <td>1.0999</td>
+            </tr>
+            <tr>
+              <td>SAC</td>
+              <td>Position</td>
+              <td>0.6974</td>
+              <td>0.1868</td>
+            </tr>
+            <tr class="row-highlight">
+              <td>PPO</td>
+              <td>Position</td>
+              <td><strong>0.2687</strong></td>
+              <td><strong>0.1519</strong></td>
+            </tr>
+            <tr>
+              <td>TD-MPC2</td>
+              <td>Position</td>
+              <td>0.5032</td>
+              <td>0.2699</td>
+            </tr>
+            <tr>
+              <td>PPO</td>
+              <td>Torque</td>
+              <td>0.7307</td>
+              <td>0.1525</td>
+            </tr>
+            <tr>
+              <td>SAC</td>
+              <td>Torque</td>
+              <td>0.6843</td>
+              <td>0.2267</td>
+            </tr>
+            <tr>
+              <td>GRPO (Hard-Sync)</td>
+              <td>Position</td>
+              <td>0.4653</td>
+              <td>0.2236</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="subsection-title">Analysis</h3>
+      <p>
+        <strong>PPO with position control</strong> achieves the strongest overall performance,
+        with the lowest <em>e</em><sub>lin</sub> = 0.2687&nbsp;m/s and
+        <em>e</em><sub>ang</sub> = 0.1519&nbsp;rad/s. Its on-policy updates and clipped objective
+        provide stable improvement and smooth locomotion control.
+        <strong>SAC</strong> learns useful behavior under position control but converges more
+        slowly and tracks less accurately than PPO; its entropy coefficient <em>α</em> decays
+        rapidly, limiting exploration and pushing the policy toward a stationary, balance-first
+        local optimum.
+        <strong>TD-MPC2</strong> reaches competitive returns intermittently but exhibits large
+        checkpoint-to-checkpoint variance (e.g. <em>e</em><sub>lin</sub> swings between 0.479 and
+        1.114 in late training), which we attribute to model errors compounding through the latent
+        planner on contact-rich rough terrain.
+      </p>
+      <p>
+        <strong>Torque control</strong> is consistently harder than position control: removing
+        the implicit PD controller forces the policy to learn balance, contact handling, and
+        velocity tracking simultaneously. PPO-torque drops to <em>e</em><sub>lin</sub> = 0.7307
+        m/s while keeping angular tracking close to PPO-position; SAC-torque hugs the random
+        baseline for most of training, with frequent falls in qualitative rollouts.
+      </p>
+      <p>
+        <strong>Hard-Sync GRPO</strong> converges remarkably fast — reaching a return of ≈16
+        within ~15k environment steps and plateauing in the 15–17 range — clearly dominating
+        fixed-bin GRPO and Adaptive-GRPO, which are still rising at the 30k cutoff. Its
+        <em>e</em><sub>lin</sub> = 0.4653&nbsp;m/s and <em>e</em><sub>ang</sub> = 0.2236&nbsp;rad/s
+        beat TD-MPC2 on linear tracking and match it on angular, while remaining more stable
+        across late checkpoints. Hard-Sync GRPO trades a small amount of asymptotic accuracy for
+        substantially better early-phase sample efficiency, despite using no critic network.
       </p>
     </div>
   </section>
 
-  <!-- ============ REFERENCES (placeholder) ============ -->
+  <!-- ============ CONCLUSION ============ -->
+  <section id="conclusion" class="section">
+    <div class="container container-narrow">
+      <h2>Conclusion and Future Work</h2>
+
+      <h3 class="subsection-title">Conclusion</h3>
+      <p>
+        We compared on-policy PPO, off-policy SAC, model-based TD-MPC2, and three GRPO variants
+        on the Unitree Go2 rough-terrain velocity-tracking task, under both position and torque
+        control. <strong>PPO with position control</strong> achieved the strongest and most stable
+        overall performance, reaching the highest return, the lowest velocity-tracking errors,
+        and the smoothest learning curve. SAC was able to learn useful locomotion under position
+        control but improved more slowly and was less stable; TD-MPC2 sometimes reached
+        competitive performance but suffered from large instability driven by model errors in the
+        contact-rich terrain. The two modifications add complementary insights:
+        <strong>torque control</strong> makes the task substantially harder because the policy
+        must directly learn balance, contact handling, and velocity tracking, while
+        <strong>Hard-Sync GRPO</strong> provided very fast early learning and stable behavior with
+        no critic network, although its final accuracy stayed slightly below PPO.
+      </p>
+
+      <h3 class="subsection-title">Future Work</h3>
+      <p>
+        Future work should focus on improving the trade-off between fast learning and final
+        performance. One direction is to <em>strengthen exploration in SAC</em> — for example by
+        regularizing or scheduling the entropy coefficient <em>α</em> so it does not collapse
+        early — to avoid the stationary, balance-first local optimum we observed. Another is to
+        <em>stabilize TD-MPC2</em> by improving the learned dynamics model and planner settings,
+        since its performance fluctuates heavily when the latent model mispredicts contact-rich
+        interactions. Finally, both <em>Hard-Sync GRPO</em> and <em>torque-control policies</em>
+        merit further development: Hard-Sync GRPO learns very quickly but does not yet match PPO's
+        final accuracy, and torque control is more realistic and flexible but makes balance and
+        contact handling much harder. Improving these methods could yield policies that are both
+        sample-efficient and robust in more realistic locomotion settings.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ REFERENCES ============ -->
   <section id="references" class="section section-alt">
     <div class="container container-narrow">
       <h2>References</h2>
       <ol class="references-list">
         <li>
-          Mayank Mittal, Pascal Roth, James Tigue, Antoine Richard, Octi Zhang, Peter Du, Antonio Serrano-Muñoz, Xinjie Yao, René Zurbrügg, Nikita Rudin, <em>et al.</em>
-          "Isaac Lab: A GPU-Accelerated Simulation Framework for Multi-Modal Robot Learning."
+          M. Mittal, P. Roth, J. Tigue, A. Richard, O. Zhang, P. Du, A. Serrano-Muñoz, X. Yao,
+          R. Zurbrügg, N. Rudin, <em>et al.</em>
+          &ldquo;Isaac Lab: A GPU-Accelerated Simulation Framework for Multi-Modal Robot Learning.&rdquo;
           <em>arXiv preprint arXiv:2511.04831</em>, 2025.
-          [<a href="https://arxiv.org/abs/2511.04831" target="_blank">arXiv</a>]
+          [<a href="https://arxiv.org/abs/2511.04831" target="_blank" rel="noopener">arXiv</a>]
+        </li>
+        <li>
+          Z. Shao, P. Wang, Q. Zhu, R. Xu, J. Song, X. Bi, H. Zhang, M. Zhang, Y. Li, Y. Wu,
+          <em>et al.</em>
+          &ldquo;DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models.&rdquo;
+          <em>arXiv preprint arXiv:2402.03300</em>, 2024.
+          [<a href="https://arxiv.org/abs/2402.03300" target="_blank" rel="noopener">arXiv</a>]
+        </li>
+        <li>
+          J. Schulman, F. Wolski, P. Dhariwal, A. Radford, and O. Klimov.
+          &ldquo;Proximal Policy Optimization Algorithms.&rdquo;
+          <em>arXiv preprint arXiv:1707.06347</em>, 2017.
+          [<a href="https://arxiv.org/abs/1707.06347" target="_blank" rel="noopener">arXiv</a>]
+        </li>
+        <li>
+          T. Haarnoja, A. Zhou, P. Abbeel, and S. Levine.
+          &ldquo;Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor.&rdquo;
+          <em>arXiv preprint arXiv:1801.01290</em>, 2018.
+          [<a href="https://arxiv.org/abs/1801.01290" target="_blank" rel="noopener">arXiv</a>]
+        </li>
+        <li>
+          N. Hansen, H. Su, and X. Wang.
+          &ldquo;TD-MPC2: Scalable, Robust World Models for Continuous Control.&rdquo;
+          <em>arXiv preprint arXiv:2310.16828</em>, 2024.
+          [<a href="https://arxiv.org/abs/2310.16828" target="_blank" rel="noopener">arXiv</a>]
         </li>
       </ol>
     </div>
